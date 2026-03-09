@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - URL Management</title>
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-color: #f3f4f6;
+            --card-bg: #fff;
+            --text-main: #111827;
+            --text-muted: #6b7280;
+            --border-color: #e5e7eb;
+            --error-color: #ef4444;
+            --success-color: #10b981;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container { max-width: 1000px; width: 100%; }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            background: white;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        h1 { margin: 0; font-size: 1.5rem; color: var(--primary-color); }
+        .logout-btn { color: var(--error-color); text-decoration: none; font-weight: 600; border: 1px solid var(--error-color); padding: 0.5rem 1rem; border-radius: 6px; }
+        .logout-btn:hover { background: #fee2e2; }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-group { display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        input[type="url"], input[type="text"], input[type="number"] {
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            flex: 1;
+        }
+        button.btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        button.btn-primary:hover { background-color: var(--primary-hover); }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.9rem;}
+        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+        th { font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+        tr:hover { background-color: #f9fafb; }
+        
+        .badge { padding: 0.25rem 0.5rem; border-radius: 999px; font-weight: 600; font-size: 0.75rem; }
+        .badge-active { background: #d1fae5; color: #065f46; }
+        .badge-inactive { background: #fee2e2; color: #991b1b; }
+        .badge-blue { background: #e0e7ff; color: var(--primary-color); }
+
+        .short-url { color: var(--primary-color); font-weight: 500; text-decoration: none; }
+        .original-url { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; }
+        
+        .action-btns { display: flex; gap: 0.5rem; }
+        .action-btn { padding: 0.4rem 0.8rem; border-radius: 6px; border: none; font-size: 0.8rem; cursor: pointer; font-weight: 600;}
+        .action-edit { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+        .action-toggle { background: #fffbeb; color: #92400e; border: 1px solid #fcd34d; }
+        
+        /* Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 2rem; border-radius: 12px; width: 100%; max-width: 400px; }
+        .modal h3 { margin-top: 0; margin-bottom: 1rem; color: var(--primary-color); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>URL Dashboard</h1>
+            <div>
+                <span style="font-weight: 600; margin-right: 1rem;">Hello, {{ user.username }}</span>
+                <a href="/logout" class="logout-btn">Logout</a>
+            </div>
+        </header>
+
+        <div class="card">
+            <h2 style="margin-top: 0; font-size: 1.25rem;">Create New Short Link</h2>
+            <form action="/shorten" method="post">
+                <div class="form-group">
+                    <input type="text" name="url" placeholder="https://example.com/very/long/url..." required style="flex: 2;">
+                    <input type="number" name="max_clicks" placeholder="Max Clicks (optional)" min="1">
+                    <button type="submit" class="btn-primary">Shorten URL</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2 style="margin-top: 0; font-size: 1.25rem;">Your Links</h2>
+            
+            {% if urls %}
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Original URL</th>
+                            <th>Short Code</th>
+                            <th>Status</th>
+                            <th>Clicks</th>
+                            <th>Created</th>
+                            <th>Last Accessed</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in urls|reverse %}
+                        <tr>
+                            <td>
+                                <a href="{{ item.original_url }}" target="_blank" class="original-url" title="{{ item.original_url }}">
+                                    {{ item.original_url }}
+                                </a>
+                            </td>
+                            <td>
+                                <a href="/{{ item.short_code }}" target="_blank" class="short-url">
+                                    {{ item.short_code }}
+                                </a>
+                            </td>
+                            <td>
+                                {% if item.is_enabled %}
+                                    <span class="badge badge-active">Active</span>
+                                {% else %}
+                                    <span class="badge badge-inactive">Disabled</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge badge-blue">{{ item.clicks }} / {{ item.max_clicks if item.max_clicks else '∞' }}</span>
+                            </td>
+                            <td style="color: var(--text-muted); font-size: 0.8rem;">
+                                {{ item.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            </td>
+                            <td style="color: var(--text-muted); font-size: 0.8rem;">
+                                {{ item.last_accessed_at.strftime('%Y-%m-%d %H:%M') if item.last_accessed_at else 'Never' }}
+                            </td>
+                            <td>
+                                <div class="action-btns">
+                                    <button class="action-btn action-edit" onclick="openEditModal('{{ item.short_code }}', '{{ item.original_url }}', '{{ item.max_clicks if item.max_clicks else '' }}')">Edit</button>
+                                    <form action="/toggle/{{ item.short_code }}" method="post" style="margin: 0;">
+                                        <button type="submit" class="action-btn action-toggle">
+                                            {{ 'Disable' if item.is_enabled else 'Enable' }}
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                <p>No links created yet. Create one above!</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h3>Edit Link</h3>
+            <form id="editForm" method="post">
+                <label style="display:block; margin-bottom: 0.5rem; font-weight: 500;">Destination URL</label>
+                <input type="text" id="editUrl" name="original_url" required style="width: 100%; box-sizing: border-box; margin-bottom: 1rem;">
+                
+                <label style="display:block; margin-bottom: 0.5rem; font-weight: 500;">Max Clicks Request (Optional)</label>
+                <input type="number" id="editMaxClicks" name="max_clicks" min="1" style="width: 100%; box-sizing: border-box; margin-bottom: 1.5rem;">
+                
+                <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                    <button type="button" class="action-btn action-edit" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" style="padding: 0.5rem 1rem;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openEditModal(code, url, max_clicks) {
+            document.getElementById('editModal').style.display = 'flex';
+            document.getElementById('editForm').action = '/edit/' + code;
+            document.getElementById('editUrl').value = url;
+            document.getElementById('editMaxClicks').value = max_clicks;
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
