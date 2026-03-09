@@ -1,17 +1,19 @@
-from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
-MONGO_DATABASE_URL = "mongodb://localhost:27017/"
-client = MongoClient(MONGO_DATABASE_URL)
+SQLALCHEMY_DATABASE_URL = "sqlite:///./url_shortener.db"
 
-try:
-    # The ismaster command is cheap and does not require auth.
-    client.admin.command('ismaster')
-except ConnectionFailure:
-    print("Server not available")
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-db = client["url_shortener"]
-urls_collection = db["urls"]
+Base = declarative_base()
 
 def get_db():
-    yield db
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
